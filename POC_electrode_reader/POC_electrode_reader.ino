@@ -22,7 +22,7 @@ void loop() {
   // Serial.print(raw);
   // Serial.print("   VOLTS: ");
   Serial.print(volts, 4);
-  Serial.print(",");
+  Serial.println(",");
 
   delay(200);  // ~50 Hz sampling
 }
