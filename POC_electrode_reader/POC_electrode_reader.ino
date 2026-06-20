@@ -18,10 +18,11 @@ void loop() {
   int raw = analogRead(PIN_PLANT);   // 0–4095
   float volts = raw * (3.3f / 4095.0f);
 
-  Serial.print("RAW: ");
-  Serial.print(raw);
-  Serial.print("   VOLTS: ");
-  Serial.println(volts, 4);
+  // Serial.print("RAW: ");
+  // Serial.print(raw);
+  // Serial.print("   VOLTS: ");
+  Serial.print(volts, 4);
+  Serial.print(",");
 
   delay(200);  // ~50 Hz sampling
 }
