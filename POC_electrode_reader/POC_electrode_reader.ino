@@ -24,5 +24,5 @@ void loop() {
   Serial.print(volts, 4);
   Serial.println(",");
 
-  delay(200);  // ~50 Hz sampling
+  delay(10);  // ~50 Hz sampling
 }
