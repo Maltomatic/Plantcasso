@@ -85,6 +85,8 @@ def servo_calibration(
     lo_pct: int = 5,  hi_pct: int = 95,
     # Tighter bounds for chaos joints → small real variations sweep full servo range
     chaos_lo_pct: int = 20, chaos_hi_pct: int = 80,
+    # Even tighter bounds for hjorth_complexity (S4) — most sensitive joint
+    hc_lo_pct: int = 30, hc_hi_pct: int = 70,
 ) -> dict:
     """Robust percentile ranges for each of the 5 servo drivers.
     Posture joints (PC1-3) use wide [lo_pct, hi_pct].
@@ -103,8 +105,8 @@ def servo_calibration(
         float(np.percentile(X_raw[:, spike_idx], chaos_hi_pct)),
     )
     calib["hjorth_complexity"] = (
-        float(np.percentile(X_raw[:, chaos_idx], chaos_lo_pct)),
-        float(np.percentile(X_raw[:, chaos_idx], chaos_hi_pct)),
+        float(np.percentile(X_raw[:, chaos_idx], hc_lo_pct)),
+        float(np.percentile(X_raw[:, chaos_idx], hc_hi_pct)),
     )
     return calib
 
@@ -143,8 +145,9 @@ def export_header(
     n_f = len(FEATURE_NAMES)
     n_s = int(sos_export.shape[0])
 
-    # Servo calibration arrays — order: PC1, PC2, PC3, spike_count, hjorth_complexity
-    servo_keys = ["pc1", "pc2", "pc3", "spike_count", "hjorth_complexity"]
+    # Servo calibration arrays — order matches JOINT assignment in plant_inference.ino:
+    #   S0=spike_count  S1=PC3  S2=PC1  S3=PC2  S4=hjorth_complexity
+    servo_keys = ["spike_count", "pc3", "pc1", "pc2", "hjorth_complexity"]
     servo_lo   = np.array([calib[k][0] for k in servo_keys], dtype=np.float32)
     servo_hi   = np.array([calib[k][1] for k in servo_keys], dtype=np.float32)
 
@@ -179,7 +182,7 @@ def export_header(
         arr2d_to_c("BIQUAD_SOS", sos_export.astype(np.float32)),
         "",
         "// ── Servo calibration [5]: {PC1, PC2, PC3, spike_count, hjorth_complexity}",
-        "// map_to_servo(v, SERVO_LO[j], SERVO_HI[j]) → angle in [SERVO_MIN, SERVO_MAX]",
+        "// Joint order: S0=spike_count, S1=PC3, S2=PC1, S3=PC2, S4=hjorth_complexity",
         arr1d_to_c("SERVO_LO", servo_lo),
         arr1d_to_c("SERVO_HI", servo_hi),
         "",

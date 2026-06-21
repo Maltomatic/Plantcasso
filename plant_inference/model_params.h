@@ -25,8 +25,8 @@ static const float PCA_COMPONENTS[3][9] = {
 
 // ── K-means centroids [N_CLUSTERS][N_PCA] ──────────────────────────
 static const float KMEANS_CENTROIDS[3][3] = {
-    {-1.01361549f, 0.08705522f, -0.05858787f},
-    {3.91936302f, -0.74788105f, 0.90600348f},
+    {-1.01361549f, 0.08705522f, -0.05858788f},
+    {3.91936255f, -0.74788111f, 0.90600348f},
     {9.45049191f, 1.50903594f, -3.28785062f}
 };
 
@@ -39,9 +39,9 @@ static const float BIQUAD_SOS[2][5] = {
 };
 
 // ── Servo calibration [5]: {PC1, PC2, PC3, spike_count, hjorth_complexity}
-// map_to_servo(v, SERVO_LO[j], SERVO_HI[j]) → angle in [SERVO_MIN, SERVO_MAX]
-static const float SERVO_LO[5] = {-1.78275943f, -1.81475365f, -0.41929880f, 0.01000000f, 1.25178158f};
-static const float SERVO_HI[5] = {5.63133860f, 2.53421068f, 1.51277649f, 0.04000000f, 1.84865105f};
+// Joint order: S0=spike_count, S1=PC3, S2=PC1, S3=PC2, S4=hjorth_complexity
+static const float SERVO_LO[5] = {0.01000000f, -0.41929880f, -1.78275943f, -1.81475365f, 1.27656186f};
+static const float SERVO_HI[5] = {0.04000000f, 1.51277649f, 5.63133860f, 2.53421068f, 1.47516859f};
 
 // ── Per-feature PCA weights [N_FEATURES] ───────────────────────────────
 // Applied AFTER StandardScaler, BEFORE PCA dot-product.
