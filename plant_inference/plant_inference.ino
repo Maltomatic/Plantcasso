@@ -227,6 +227,7 @@ static float  s_mean_ring_sum  = 0.0f; // running sum for O(1) mean
 // ─────────────────────────────────────────────────────────────────────────────
 // Standardise + PCA project
 // ─────────────────────────────────────────────────────────────────────────────
+static float                         s_win_mean_v = 0.0f;  // raw window mean (V)
 static std::array<float, N_FEATURES> s_scaled{};
 static std::array<float, N_PCA>      s_pca{};
 
@@ -241,6 +242,7 @@ static void standardise_and_project() noexcept {
     if (s_mean_ring_fill < N_MEAN_WINDOWS) ++s_mean_ring_fill;
 
     const float rolling_mean = s_mean_ring_sum / static_cast<float>(s_mean_ring_fill);
+    s_win_mean_v    = s_raw_feats[0];  // save absolute window mean before subtraction
     s_raw_feats[0] -= rolling_mean;   // deviation from local N-window baseline
 
     for (int i = 0; i < N_FEATURES; ++i)
@@ -324,6 +326,9 @@ static void update_servos(int cluster) noexcept {
     Serial.print("    mean:");   Serial.print(s_raw_feats[0], 3);
     Serial.print("  spk:");     Serial.print(s_raw_feats[5], 4);
     Serial.print("  chaos:");   Serial.println(s_raw_feats[7], 3);
+
+    Serial.printf("{0:%.4f; 1:%.4f; 2:%.4f; 3:%.4f; 4:%d}\n",
+                  s_win_mean_v, s_raw_feats[1], s_raw_feats[5], s_raw_feats[7], cluster);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +336,12 @@ static void update_servos(int cluster) noexcept {
 // ─────────────────────────────────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
-    while (!Serial) { /* wait for USB CDC */ }
+    uint32_t now = millis();
+    uint32_t ref_t = millis();
+    while (!Serial) {
+        if(ref_t - now > 500) break;
+        ref_t = millis();
+    }
 
     analogReadResolution(12);         // 0 – 4095
     analogSetAttenuation(ADC_11db);   // 0 – 3.3 V range
