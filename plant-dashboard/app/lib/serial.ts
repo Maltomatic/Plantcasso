@@ -8,9 +8,8 @@
  * ESP32 emits one JSON object per inference window, e.g.
  *   {"cluster":0,"servo":[166,98,10,33,75],"mean":-0.0,"spk":0.02,"chaos":1.382,"volts":0.1725}
  *
- * If the serial port cannot be opened (no device attached, dev machine, …) we
- * fall back to emitting simulated data so the dashboard stays usable — this
- * mirrors the behaviour of the original Flask `dashboard-2/app.py`.
+ * If the serial port cannot be opened (no device attached, …) the reader simply
+ * stays idle and logs the error — there is no simulated-data fallback.
  *
  * A single instance is cached on `globalThis` so Next.js dev HMR / multiple
  * route invocations don't open the port more than once.
@@ -66,9 +65,8 @@ class SerialReader {
   private listeners = new Set<Listener>();
   private latest: Reading | null = null;
   private started = false;
-  private simTimer: NodeJS.Timeout | null = null;
 
-  /** Lazily open the port / start the simulator on first subscriber. */
+  /** Lazily open the port on first subscriber. */
   private ensureStarted(): void {
     if (this.started) return;
     this.started = true;
@@ -85,14 +83,12 @@ class SerialReader {
       );
       parser.on("data", (line: string) => this.handleLine(line));
       port.on("error", (err) => {
-        console.error(`[serial] error: ${err.message} — using simulation`);
-        this.startSimulation();
+        console.error(`[serial] error: ${err.message}`);
       });
     } catch (err) {
       console.error(
-        `[serial] could not open ${SERIAL_PORT}: ${(err as Error).message} — using simulation`
+        `[serial] could not open ${SERIAL_PORT}: ${(err as Error).message}`
       );
-      this.startSimulation();
     }
   }
 
@@ -104,23 +100,6 @@ class SerialReader {
     } catch {
       // ignore malformed / partial lines
     }
-  }
-
-  /** Emit simulated readings (~2 Hz) when no hardware is available. */
-  private startSimulation(): void {
-    if (this.simTimer) return;
-    this.simTimer = setInterval(() => {
-      const spike = Math.floor(Math.random() * 4);
-      this.emit({
-        timestamp: Date.now() / 1000,
-        mean: 1.5 + (Math.random() - 0.5) * 0.2,
-        std: 0.01 + Math.random() * 0.02,
-        spike_count: spike,
-        hjorth: 0.7 + Math.random() * 0.4,
-        cluster: Math.floor(Math.random() * 3),
-        volts: 1.5 + (Math.random() - 0.5) * 0.4,
-      });
-    }, 500);
   }
 
   private emit(r: Reading): void {
