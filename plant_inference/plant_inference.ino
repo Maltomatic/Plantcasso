@@ -357,8 +357,10 @@ static void update_servos(int cluster) noexcept {
 
     // ── Emit one JSON object per window (newline-delimited / JSONL) ────────
     // StaticJsonDocument lives on the stack (no heap) per AGENTS.md guidance.
-    // Capacity: 6 members + a 5-element array, rounded up with headroom.
-    StaticJsonDocument<128> doc;
+    // Capacity: 6 object members + a 5-element array = 11 slots. On 32-bit
+    // targets each slot is 16 B (~176 B), so 128 B silently dropped the last
+    // members added (chaos, volts). 256 B gives headroom.
+    StaticJsonDocument<256> doc;
     doc["cluster"] = cluster;
     JsonArray servo = doc.createNestedArray("servo");
     for (int j = 0; j < 5; ++j)
