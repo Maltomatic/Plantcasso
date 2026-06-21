@@ -292,7 +292,7 @@ static constexpr float JOINT_MAX[5] = {170.0f, 120.0f, 90.0f, 80.0f, 110.0f };
 // Number of linear traversals of [JOINT_MIN, JOINT_MAX] as the signal sweeps
 // its full calibrated range.  0 = normal linear map.  S4 bounces 3× so that
 // even small hjorth_complexity changes produce rapid left-right waving.
-static constexpr int SERVO_BOUNCES[5] = {0, 3, 2, 0, 4};
+static constexpr int SERVO_BOUNCES[5] = {0, 0, 0, 0, 2};
 
 // EMA alpha — applied every 100 Hz tick (not per window).
 // Slow PCA joints settle over ~1-2 s; fast transient joints respond in ~200 ms.
@@ -329,12 +329,6 @@ static float map_servo_bounce(float v, float lo, float hi,
     int   seg = static_cast<int>(s);
     if (seg % 2 == 1) f = 1.0f - f;      // reverse direction on odd segments
     return out_min + f * (out_max - out_min);
-}
-
-// Convert a servo angle (0°…180°) to a PCA9685 pulse width in microseconds.
-[[nodiscard]] static uint16_t deg_to_us(float deg) noexcept {
-    const float t = deg * (1.0f / 180.0f);
-    return static_cast<uint16_t>(SERVO_US_MIN + t * (SERVO_US_MAX - SERVO_US_MIN));
 }
 
 static void update_servos(int cluster) noexcept {
