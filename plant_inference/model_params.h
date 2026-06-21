@@ -7,7 +7,7 @@ static const int N_FEATURES  = 9;
 static const int N_PCA       = 3;
 static const int N_CLUSTERS  = 3;
 static const int WINDOW_SIZE = 100;   // samples (1 s @ 100 Hz)
-static const int HOP_SIZE    = 30;    // 70 % overlap
+static const int HOP_SIZE    = 30;    // on-device inference cadence (independent of training hop in 01_filter_extract.py)
 static const int N_SOS       = 2; // biquad sections
 
 // ── StandardScaler ──────────────────────────────────────────────────
@@ -18,9 +18,9 @@ static const float SCALER_STD[9] = {0.03529279f, 0.02195207f, 0.07448070f, 0.000
 // ── PCA projection [N_PCA][N_FEATURES] ─────────────────────────────
 // pca[p] = dot(PCA_COMPONENTS[p], scaled_features)
 static const float PCA_COMPONENTS[3][9] = {
-    {-0.08539191f, 0.40817499f, 0.40253550f, -0.01109325f, -0.39402670f, -0.25052562f, -0.42107865f, 0.50239450f, 0.12734179f},
-    {-0.19607405f, 0.37608653f, 0.41466716f, -0.05500407f, 0.26789266f, 0.20046963f, 0.28293875f, -0.28025633f, 0.61203521f},
-    {0.60130411f, 0.02314646f, 0.06354273f, 0.71807182f, -0.12774420f, -0.06319597f, -0.08193596f, -0.20762554f, 0.21931408f}
+    {-0.08539191f, 0.40817499f, 0.40253547f, -0.01109324f, -0.39402670f, -0.25052565f, -0.42107865f, 0.50239450f, 0.12734179f},
+    {-0.19607405f, 0.37608650f, 0.41466713f, -0.05500407f, 0.26789260f, 0.20046967f, 0.28293875f, -0.28025630f, 0.61203527f},
+    {0.60130411f, 0.02314645f, 0.06354271f, 0.71807176f, -0.12774426f, -0.06319598f, -0.08193599f, -0.20762561f, 0.21931410f}
 };
 
 // ── K-means centroids [N_CLUSTERS][N_PCA] ──────────────────────────

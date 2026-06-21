@@ -3,7 +3,7 @@
  * ============================================
  * Real-time plant bioelectric signal → K-means cluster → 5-DOF servo arm.
  *
- * Workflow (triggered every HOP_SIZE=50 new samples = every 500 ms at 100 Hz):
+ * Workflow (triggered every HOP_SIZE=30 new samples = every 300 ms at 100 Hz):
  *
  *   ADC (12-bit, 3.3 V)
  *     → Biquad IIR lowpass  (30 Hz, 4th-order Butterworth, 2 × Direct-Form-II)
@@ -35,6 +35,7 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include "model_params.h"
 
 static constexpr int PIN_PLANT       = 11;
@@ -328,6 +329,12 @@ static float map_servo_bounce(float v, float lo, float hi,
     int   seg = static_cast<int>(s);
     if (seg % 2 == 1) f = 1.0f - f;      // reverse direction on odd segments
     return out_min + f * (out_max - out_min);
+}
+
+// Convert a servo angle (0°…180°) to a PCA9685 pulse width in microseconds.
+[[nodiscard]] static uint16_t deg_to_us(float deg) noexcept {
+    const float t = deg * (1.0f / 180.0f);
+    return static_cast<uint16_t>(SERVO_US_MIN + t * (SERVO_US_MAX - SERVO_US_MIN));
 }
 
 static void update_servos(int cluster) noexcept {

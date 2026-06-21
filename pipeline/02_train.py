@@ -161,7 +161,7 @@ def export_header(
         f"static const int N_PCA       = {N_PCA};",
         f"static const int N_CLUSTERS  = {K};",
         f"static const int WINDOW_SIZE = 100;   // samples (1 s @ 100 Hz)",
-        f"static const int HOP_SIZE    = 30;    // 70 % overlap",
+        f"static const int HOP_SIZE    = 30;    // on-device inference cadence (independent of training hop in 01_filter_extract.py)",
         f"static const int N_SOS       = {n_s}; // biquad sections",
         "",
         "// ── StandardScaler ──────────────────────────────────────────────────",
