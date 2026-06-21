@@ -132,7 +132,7 @@ function Panel({
         </span>
       </div>
       <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={256} minWidth={0}>
           {children}
         </ResponsiveContainer>
       </div>
