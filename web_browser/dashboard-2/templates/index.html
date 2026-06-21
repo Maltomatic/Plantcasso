@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Plant Anomaly Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; }
+
+
+        /* Full-screen cover */
+        #cover {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+
+        /* Background video */
+        #cover-video {
+            position: center;
+            z-index:-1;
+            top: 0;
+            left: 0;
+            opacity: 0.6;
+            height: 100%;      /* Fit by height */
+            width: auto;        /* Width adjusts automatically */
+            object-fit: cover;  /* Fill the screen */
+        }
+
+
+        /* Overlay text */
+        #cover-text {
+            z-index:1;
+            position: relative;
+            color: #506043;
+            font-size: 2.5rem;
+            text-align: center;
+            z-index: 10;
+            padding: 20px;
+            font-family: "Rainly.otf";
+        }
+
+
+        #cover-text h1 { font-size: 4rem; margin-bottom: 10px; }
+        #cover-text p { font-size: 3rem; }
+
+
+        #enter-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            background: #376639;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+
+        /* Dashboard (hidden initially) */
+        #dashboard {
+            display: none;
+            padding: 20px;
+        }
+
+
+        h1 { text-align: center; margin-bottom: 20px; }
+
+
+        /* 2x2 grid for charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;  /* 2 columns */
+            grid-template-rows: auto auto;    /* 2 rows */
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+
+        .chart-container {
+            background: #4c6b47;
+            border-radius: 5px;
+            padding: 15px;
+            #box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-height: 300px;
+        }
+        
+    </style>
+    
+</head>
+<body>
+    <!-- Cover screen -->
+    <div id="cover">
+      <video id="cover-video" autoplay muted>
+        <source src="static/vid.mp4" type="video/mp4">
+      </video>
+        <div id="cover-text">
+            <h1>Plantcasso: Biosignal Agitation Dashboard</h1>
+            <br>
+            <br>
+            <br>
+            <p>Real-time anomaly detection using K-means clustering</p>
+            <button id="enter-btn">Enter Dashboard</button>
+        </div>
+    </div>
+
+
+    <!-- Main dashboard -->
+    <div id="dashboard">
+        <h1>Plant Biosignal Dashboard</h1>
+
+
+        <!-- 2x2 grid -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div id="meanStdChart"></div>
+            </div>
+            <div class="chart-container">
+                <div id="spikeChart"></div>
+            </div>
+            <div class="chart-container">
+                <div id="hjorthChart"></div>
+            </div>
+            <div class="chart-container">
+                <div id="clusterChart"></div>
+            </div>
+        </div>
+
+
+        <script>
+            const MAX_POINTS = 100;  // keep last 100 windows
+
+
+            let times = [];
+            let means = [];
+            let stds = [];
+            let spikeCounts = [];
+            let hjorths = [];
+            let clusterLabels = [];
+
+
+            const socket = io();
+
+
+            socket.on("new_data", (data) => {
+                // Append new data
+                times.push(data.timestamp);
+                means.push(data.mean);
+                stds.push(data.std);
+                spikeCounts.push(data.spike_count);
+                hjorths.push(data.hjorth);
+                clusterLabels.push(data.cluster);
+
+
+                // Keep only last MAX_POINTS
+                if (times.length > MAX_POINTS) {
+                    times = times.slice(times.length - MAX_POINTS);
+                    means = means.slice(times.length - MAX_POINTS);
+                    stds = stds.slice(stds.length - MAX_POINTS);
+                    spikeCounts = spikeCounts.slice(spikeCounts.length - MAX_POINTS);
+                    hjorths = hjorths.slice(hjorths.length - MAX_POINTS);
+                    clusterLabels = clusterLabels.slice(clusterLabels.length - MAX_POINTS);
+                }
+
+
+                drawCharts();
+            });
+
+
+            function showDashboard() {
+                document.getElementById("cover").style.transition = "opacity 1s";
+                document.getElementById("cover").style.opacity = "0";
+                setTimeout(() => {
+                    document.getElementById("cover").style.display = "none";
+                    document.getElementById("dashboard").style.display = "block";
+                }, 1000);
+            }
+
+
+            function drawCharts() {
+                // Mean ± std
+                const upper = means.map((m, i) => m + stds[i]);
+                const lower = means.map((m, i) => m - stds[i]);
+
+
+                const meanLine = {
+                    x: times,
+                    y: means,
+                    type: "scatter",
+                    mode: "lines",
+                    name: "Mean",
+                    line: { color: "#2196F3" }
+                };
+
+
+                const stdBand = {
+                    x: [...times, ...times.reverse()],
+                    y: [...upper, ...lower.reverse()],
+                    type: "scatter",
+                    fill: "tonexty",
+                    name: "Std",
+                    line: { color: "rgba(33,150,243,0.2)" },
+                    hoverinfo: "none"
+                };
+
+
+                const meanStdLayout = {
+                    title: "Mean ± Std (Moving Window)",
+                    xaxis: { title: "Time" },
+                    yaxis: { title: "Voltage (V)" },
+                    margin: { t: 40, r: 20, b: 40, l: 50 }
+                };
+
+
+                // Spike count
+                const spikeTrace = {
+                    x: times,
+                    y: spikeCounts,
+                    type: "scatter",
+                    mode: "lines+markers",
+                    name: "Spike Count",
+                    line: { color: "#FF5722" }
+                };
+
+
+                const spikeLayout = {
+                    title: "Spike Count (Current Window)",
+                    xaxis: { title: "Time" },
+                    yaxis: { title: "Count" },
+                    margin: { t: 40, r: 20, b: 40, l: 50 }
+                };
+
+
+                // Hjorth complexity
+                const hjorthTrace = {
+                    x: times,
+                    y: hjorths,
+                    type: "scatter",
+                    mode: "lines+markers",
+                    name: "Hjorth Complexity",
+                    line: { color: "#00C853" }
+                };
+
+
+                const hjorthLayout = {
+                    title: "Hjorth Complexity",
+                    xaxis: { title: "Time" },
+                    yaxis: { title: "Complexity" },
+                    margin: { t: 40, r: 20, b: 40, l: 50 }
+                };
+
+
+                // Cluster labels
+                const clusterColors = clusterLabels.map(c =>
+                    c === 0 ? "#00C853" :   // stable (green)
+                    c === 1 ? "#FF9800" :   // slight agitation (orange)
+                    "#FF5252"                // high agitation (red)
+                );
+
+
+                const clusterTrace = {
+                    x: times,
+                    y: clusterLabels,
+                    type: "scatter",
+                    mode: "markers",
+                    name: "Cluster",
+                    marker: { color: clusterColors, size: 8 }
+                };
+
+
+                const clusterLayout = {
+                    title: "Current Cluster (0=stable, 1=slight agitation, 2=high agitation)",
+                    xaxis: { title: "Time" },
+                    yaxis: {
+                        title: "Cluster",
+                        tickvals: [0, 1, 2],
+                        ticktext: ["Stable", "Slight Agitation", "High Agitation"]
+                    },
+                    margin: { t: 40, r: 20, b: 40, l: 50 }
+                };
+
+
+                Plotly.newPlot("meanStdChart", [stdBand, meanLine], meanStdLayout);
+                Plotly.newPlot("spikeChart", [spikeTrace], spikeLayout);
+                Plotly.newPlot("hjorthChart", [hjorthTrace], hjorthLayout);
+                Plotly.newPlot("clusterChart", [clusterTrace], clusterLayout);
+            }
+
+
+            document.getElementById("enter-btn").addEventListener("click", showDashboard);
+        </script>
+    </div>
+</body>
+</html>

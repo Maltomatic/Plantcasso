@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Plant Anomaly Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        /* Full-screen cover */
+        #cover {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        /* Background video */
+        #cover-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+        }
+
+        /* Overlay text */
+        #cover-text {
+            position: relative;
+            color: #fff;
+            font-size: 2.5rem;
+            text-align: center;
+            z-index: 10;
+            padding: 20px;
+        }
+
+        #cover-text h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        #cover-text p {
+            font-size: 1.2rem;
+        }
+
+        /* Main dashboard (hidden initially) */
+        #dashboard {
+            display: none;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .chart-container {
+            margin: 20px auto;
+            max-width: 900px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Cover screen -->
+    <div id="cover">
+        <!--_REPLACE_WITH_YOUR_VIDEO_FILE-->
+        <video id="cover-video" autoplay muted loop>
+            <source src="vid.mp4" type="video/mp4">
+            Your browser does not support video.
+        </video>
+
+        <div id="cover-text">
+            <h1>Plant Biosignal Anomaly Dashboard</h1>
+            <p>Real-time anomaly detection using K-means clustering</p>
+            <p style="margin-top: 10px; font-size: 0.9rem;">plantcasso</p>
+        </div>
+    </div>
+
+    <!-- Main dashboard -->
+    <div id="dashboard">
+        <h1>Plant Biosignal Anomaly Dashboard</h1>
+
+        <div class="chart-container">
+            <div id="voltageChart"></div>
+            <div id="scoreChart"></div>
+        </div>
+
+        <script>
+            let times = [];
+            let voltages = [];
+            let scores = [];
+            let anomalyFlags = [];
+
+            // Fade out cover after data loads or after timeout
+            function showDashboard() {
+                document.getElementById("cover").style.transition = "opacity 1s";
+                document.getElementById("cover").style.opacity = "0";
+                setTimeout(() => {
+                    document.getElementById("cover").style.display = "none";
+                    document.getElementById("dashboard").style.display = "block";
+                }, 1000);
+            }
+
+            function updateData() {
+                fetch("/data")
+                    .then(res => res.json())
+                    .then(data => {
+                        times = data.timestamps;
+                        voltages = data.voltage_means;
+                        scores = data.scores;
+                        anomalyFlags = data.anomalies;
+
+                        const voltageTrace = {
+                            x: times,
+                            y: voltages,
+                            type: "scatter",
+                            mode: "lines",
+                            name: "Voltage",
+                            line: { color: "#2196F3" }
+                        };
+
+                        const scoreTrace = {
+                            x: times,
+                            y: scores,
+                            type: "scatter",
+                            mode: "lines+markers",
+                            name: "Score",
+                            line: { color: "#FF5722" }
+                        };
+
+                        const voltageLayout = {
+                            title: "Voltage (Mean per Window)",
+                            xaxis: { title: "Time" },
+                            yaxis: { title: "Voltage" }
+                        };
+
+                        const scoreLayout = {
+                            title: "Anomaly Score",
+                            xaxis: { title: "Time" },
+                            yaxis: { title: "Score" }
+                        };
+
+                        Plotly.newPlot("voltageChart", [voltageTrace], voltageLayout);
+                        Plotly.newPlot("scoreChart", [scoreTrace], scoreLayout);
+
+                        // Show dashboard after first successful data load
+                        showDashboard();
+                    })
+                    .catch(err => {
+                        console.error("Error fetching data:", err);
+                    });
+            }
+
+            updateData();
+            setInterval(updateData, 2000); // update every 2 seconds
+        </script>
+    </div>
+</body>
+</html>
