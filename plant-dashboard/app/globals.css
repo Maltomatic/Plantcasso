@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
+/*
+ * Plantcasso — Botanical Telemetry (daylight)
+ * Warm parchment ground, deep spruce-green ink, organic serif (Fraunces) vs.
+ * clinical mono (Geist Mono). State palette (green/amber/coral) is functional:
+ * it encodes the plant's measured agitation, never decoration.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #efeadd;
+  --bg-grad: #e7e1d1;
+  --surface: #fbf9f2;
+  --surface-2: #ffffff;
+  --line: rgba(36, 56, 44, 0.12);
+  --line-strong: rgba(36, 56, 44, 0.24);
+  --ink: #1f2d24;
+  --spruce: #25392d;
+  --sage: #5e6e57;
+  --sage-dim: #93937c;
+
+  --stable: #3f9b57;
+  --slight: #c2872b;
+  --high: #cf4b38;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-sage: var(--sage);
+  --color-stable: var(--stable);
+  --color-slight: var(--slight);
+  --color-high: var(--high);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(120% 90% at 80% -10%, rgba(63, 155, 87, 0.08), transparent 55%),
+    radial-gradient(90% 70% at 0% 110%, rgba(63, 155, 87, 0.06), transparent 50%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-grad) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Eyebrow / instrument label — the mono "instrument" voice */
+.eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
+
+/* The breathing vital — borrowed from a patient monitor's rhythm */
+@keyframes breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+.vital-dot {
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vital-dot { animation: none; }
+  .scanline { animation: none !important; }
+}
+
+/* Subtle phosphor scanline for the hero trace readout */
+.scanline {
+  animation: sweep 4.5s linear infinite;
+}
+
+::selection {
+  background: rgba(63, 155, 87, 0.22);
+  color: var(--ink);
+}
+
+/* Recharts tooltip wrapper override for a cohesive instrument look */
+.recharts-default-tooltip {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-mono), monospace !important;
+  font-size: 11px !important;
 }

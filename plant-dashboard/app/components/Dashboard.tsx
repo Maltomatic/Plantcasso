@@ -46,8 +46,19 @@ interface Point extends Reading {
   band: [number, number]; // [mean - std, mean + std]
 }
 
-const CLUSTER_COLORS = ["#00C853", "#FF9800", "#FF5252"]; // stable / slight / high
+// Functional state palette — these colors *are* the data. Stable green,
+// amber unease, coral alarm. Matched to globals.css tokens.
+const CLUSTER_COLORS = ["#3f9b57", "#c2872b", "#cf4b38"];
 const CLUSTER_LABELS = ["Stable", "Slight Agitation", "High Agitation"];
+
+// Shared chart theme so every instrument reads as one panel.
+const GRID = "rgba(36,56,44,0.10)";
+const AXIS = { fill: "#93937c", fontSize: 10, fontFamily: "var(--font-mono)" };
+const CURSOR = { stroke: "rgba(36,56,44,0.22)" };
+// Per-channel trace accents, tuned for contrast on parchment.
+const C_POTENTIAL = "#3e7ca8";
+const C_SPIKE = "#c2872b";
+const C_HJORTH = "#3f9b57";
 
 function fmtTime(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toLocaleTimeString([], {
@@ -55,17 +66,72 @@ function fmtTime(epochSeconds: number): string {
   });
 }
 
+// Custom tooltip — mono, instrument-styled, color-keyed to the series.
+function ChartTip({
+  active,
+  payload,
+  label,
+  unit = "",
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; color?: string }>;
+  label?: string;
+  unit?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-3 py-2 font-mono text-[11px] shadow-xl">
+      <div className="mb-1 text-[var(--sage)]">{label}</div>
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center gap-2 text-[var(--ink)]">
+          <span
+            className="inline-block h-2 w-2 rounded-full"
+            style={{ background: p.color }}
+          />
+          <span className="text-[var(--sage)]">{p.name}</span>
+          <span className="ml-auto tabular-nums">
+            {typeof p.value === "number" ? p.value.toFixed(3) : p.value}
+            {unit}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Panel({
+  channel,
   title,
+  hint,
+  accent,
   children,
 }: {
+  channel: string;
   title: string;
+  hint: string;
+  accent: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md bg-[#4c6b47] p-4">
-      <h2 className="mb-2 text-sm font-semibold text-white">{title}</h2>
-      <div className="h-72 w-full rounded bg-white p-2">
+    <div className="group relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)]/80 p-5 backdrop-blur-sm transition-colors hover:border-[var(--line-strong)]">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
+      />
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <div>
+          <div className="eyebrow" style={{ color: accent }}>
+            {channel}
+          </div>
+          <h2 className="mt-1 font-display text-lg font-medium text-[var(--ink)]">
+            {title}
+          </h2>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sage-dim)]">
+          {hint}
+        </span>
+      </div>
+      <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           {children}
         </ResponsiveContainer>
@@ -116,32 +182,46 @@ export default function Dashboard() {
     setTimeout(() => setEntered(true), 1000);
   }
 
+  // Live derived state for the hero vitals — the plant's current condition.
+  const latest = points.length ? points[points.length - 1] : null;
+  const connected = points.length > 0;
+  const stateIdx = latest ? Math.max(0, Math.min(2, latest.cluster)) : 0;
+  const stateColor = CLUSTER_COLORS[stateIdx];
+  const stateLabel = CLUSTER_LABELS[stateIdx];
+
   if (!entered) {
     return (
       <div
-        className="fixed inset-0 z-[1000] flex items-center justify-center overflow-hidden bg-white transition-opacity duration-1000"
+        className="fixed inset-0 z-[1000] flex items-center justify-center overflow-hidden bg-[var(--bg)] transition-opacity duration-1000"
         style={{ opacity: fading ? 0 : 1 }}
       >
         <video
           autoPlay
           muted
           loop
-          className="absolute h-full w-auto object-cover opacity-60"
+          playsInline
+          className="absolute h-full w-full object-cover opacity-40 mix-blend-multiply saturate-[0.75]"
         >
           <source src="/vid.mp4" type="video/mp4" />
         </video>
-        <div className="relative z-10 px-5 text-center text-[#506043]">
-          <h1 className="mb-3 text-5xl font-bold">
-            Plantcasso: Biosignal Agitation Dashboard
+        {/* Parchment veil: keeps the botanical footage airy and the type legible */}
+        <div className="absolute inset-0 bg-[var(--bg)]/35" />
+        <div className="absolute inset-0 bg-[radial-gradient(120%_85%_at_50%_25%,transparent_25%,var(--bg))]" />
+
+        <div className="relative z-10 mx-auto max-w-2xl px-6 text-center">
+          <h1 className="font-display text-6xl font-light leading-[0.95] tracking-tight text-[var(--ink)] sm:text-7xl">
+            Plant<span className="italic text-[var(--stable)]">casso</span>
           </h1>
-          <p className="mb-8 mt-6 text-3xl">
-            Real-time anomaly detection using K-means clustering
+          <p className="mx-auto mt-6 max-w-md font-mono text-sm leading-relaxed text-[var(--sage)]">
+            A houseplant, wired and listening. Bioelectric signals clustered in
+            real time into calm, unease, and alarm.
           </p>
           <button
             onClick={enterDashboard}
-            className="cursor-pointer border-none bg-[#376639] px-5 py-2.5 text-lg text-white hover:bg-[#2c5230]"
+            className="group mt-10 inline-flex items-center gap-3 rounded-full border border-[var(--line-strong)] bg-[var(--surface)]/60 px-6 py-3 font-mono text-sm uppercase tracking-[0.18em] text-[var(--ink)] backdrop-blur-sm transition-all hover:border-[var(--stable)] hover:bg-[var(--surface-2)]"
           >
-            Enter Dashboard
+            Begin monitoring
+            <span className="transition-transform group-hover:translate-x-1">→</span>
           </button>
         </div>
       </div>
@@ -149,29 +229,97 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="w-full p-5">
-      <h1 className="mb-6 text-center text-2xl font-bold">
-        Plant Biosignal Dashboard
-      </h1>
+    <div className="mx-auto w-full max-w-[1400px] px-5 pb-16 pt-6 sm:px-8">
+      {/* Header — wordmark + live telemetry status */}
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] pb-5">
+        <div className="flex items-baseline gap-3">
+          <span className="font-display text-2xl font-light tracking-tight text-[var(--ink)]">
+            Plant<span className="italic text-[var(--stable)]">casso</span>
+          </span>
+          <span className="hidden font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--sage-dim)] sm:inline">
+            Biosignal Telemetry
+          </span>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)]/60 px-3 py-1.5">
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${connected ? "vital-dot" : ""}`}
+            style={{ background: connected ? "var(--stable)" : "var(--sage-dim)" }}
+          />
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sage)]">
+            {connected ? "Live · Serial" : "Awaiting signal"}
+          </span>
+        </div>
+      </header>
 
-      <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel title="Mean ± Std (Moving Window)">
-          <ComposedChart data={points}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="t" minTickGap={40} tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
+      {/* Hero vitals — the signature: a breathing patient-monitor readout */}
+      <section
+        className="relative mt-6 overflow-hidden rounded-3xl border bg-[var(--surface)]/70 p-6 sm:p-8"
+        style={{ borderColor: `${stateColor}40` }}
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: `radial-gradient(110% 90% at 100% 0%, ${stateColor}1f, transparent 55%)` }}
+        />
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <span
+                className="absolute inset-0 rounded-full opacity-30 blur-md"
+                style={{ background: stateColor }}
+              />
+              <span
+                className="vital-dot relative h-10 w-10 rounded-full"
+                style={{ background: stateColor }}
+              />
+            </div>
+            <div>
+              <div className="eyebrow">Current plant state</div>
+              <div
+                className="mt-1 font-display text-4xl font-light leading-none sm:text-5xl"
+                style={{ color: stateColor }}
+              >
+                {stateLabel}
+              </div>
+              <div className="mt-2 font-mono text-[11px] text-[var(--sage-dim)]">
+                Cluster {stateIdx} · K-means over the moving window
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+            <Readout label="Potential" value={latest ? latest.volts.toFixed(3) : "—"} unit="V" />
+            <Readout label="Mean" value={latest ? latest.mean.toFixed(3) : "—"} unit="µV" />
+            <Readout label="Spikes" value={latest ? latest.spike_count.toFixed(2) : "—"} unit="/win" />
+            <Readout label="Hjorth" value={latest ? latest.hjorth.toFixed(3) : "—"} unit="" />
+          </div>
+        </div>
+      </section>
+
+      {/* Instrument array */}
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Panel
+          channel="CH·01"
+          title="Membrane Potential"
+          hint="mean ± std"
+          accent={C_POTENTIAL}
+        >
+          <ComposedChart data={points} margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="t" minTickGap={48} tick={AXIS} stroke={GRID} tickLine={false} />
+            <YAxis tick={AXIS} stroke={GRID} tickLine={false} width={44} />
+            <Tooltip content={<ChartTip unit=" µV" />} cursor={CURSOR} />
             <Area
               dataKey="band"
               stroke="none"
-              fill="#2196F3"
-              fillOpacity={0.2}
+              fill={C_POTENTIAL}
+              fillOpacity={0.16}
               isAnimationActive={false}
               name="Std band"
             />
             <Line
               dataKey="mean"
-              stroke="#2196F3"
+              stroke={C_POTENTIAL}
+              strokeWidth={1.6}
               dot={false}
               isAnimationActive={false}
               name="Mean"
@@ -179,53 +327,90 @@ export default function Dashboard() {
           </ComposedChart>
         </Panel>
 
-        <Panel title="Spike Count (Current Window)">
-          <LineChart data={points}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="t" minTickGap={40} tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
+        <Panel
+          channel="CH·02"
+          title="Spike Rate"
+          hint="events / window"
+          accent={C_SPIKE}
+        >
+          <LineChart data={points} margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="t" minTickGap={48} tick={AXIS} stroke={GRID} tickLine={false} />
+            <YAxis tick={AXIS} stroke={GRID} tickLine={false} width={44} />
+            <Tooltip content={<ChartTip />} cursor={CURSOR} />
             <Line
               dataKey="spike_count"
-              stroke="#FF5722"
-              dot={{ r: 2 }}
+              stroke={C_SPIKE}
+              strokeWidth={1.6}
+              dot={false}
               isAnimationActive={false}
-              name="Spike count"
+              name="Spikes"
             />
           </LineChart>
         </Panel>
 
-        <Panel title="Hjorth Complexity">
-          <LineChart data={points}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="t" minTickGap={40} tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
+        <Panel
+          channel="CH·03"
+          title="Hjorth Complexity"
+          hint="signal chaos"
+          accent={C_HJORTH}
+        >
+          <LineChart data={points} margin={{ top: 6, right: 8, left: -12, bottom: 0 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="t" minTickGap={48} tick={AXIS} stroke={GRID} tickLine={false} />
+            <YAxis tick={AXIS} stroke={GRID} tickLine={false} width={44} />
+            <Tooltip content={<ChartTip />} cursor={CURSOR} />
             <Line
               dataKey="hjorth"
-              stroke="#00C853"
-              dot={{ r: 2 }}
+              stroke={C_HJORTH}
+              strokeWidth={1.6}
+              dot={false}
               isAnimationActive={false}
-              name="Hjorth complexity"
+              name="Hjorth"
             />
           </LineChart>
         </Panel>
 
-        <Panel title="Current Cluster (0=stable, 1=slight, 2=high agitation)">
-          <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="t" minTickGap={40} tick={{ fontSize: 11 }} />
+        <Panel
+          channel="CH·04"
+          title="Agitation Cluster"
+          hint="stable / slight / high"
+          accent={stateColor}
+        >
+          <ScatterChart margin={{ top: 6, right: 8, left: 8, bottom: 0 }}>
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="t" minTickGap={48} tick={AXIS} stroke={GRID} tickLine={false} />
             <YAxis
               dataKey="cluster"
               type="number"
               domain={[-0.5, 2.5]}
               ticks={[0, 1, 2]}
               tickFormatter={(v: number) => CLUSTER_LABELS[v] ?? String(v)}
-              tick={{ fontSize: 11 }}
-              width={110}
+              tick={AXIS}
+              stroke={GRID}
+              tickLine={false}
+              width={104}
             />
-            <ZAxis range={[60, 60]} />
-            <Tooltip />
+            <ZAxis range={[50, 50]} />
+            <Tooltip
+              cursor={CURSOR}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const p = payload[0]?.payload as Point;
+                return (
+                  <div className="rounded-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-3 py-2 font-mono text-[11px] text-[var(--ink)] shadow-xl">
+                    <div className="text-[var(--sage)]">{p.t}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ background: CLUSTER_COLORS[p.cluster] }}
+                      />
+                      {CLUSTER_LABELS[p.cluster] ?? p.cluster}
+                    </div>
+                  </div>
+                );
+              }}
+            />
             <Scatter data={points} isAnimationActive={false}>
               {points.map((p, i) => (
                 <Cell key={i} fill={CLUSTER_COLORS[p.cluster] ?? "#888"} />
@@ -233,6 +418,34 @@ export default function Dashboard() {
             </Scatter>
           </ScatterChart>
         </Panel>
+      </div>
+
+      <footer className="mt-8 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sage-dim)]">
+        <span>Plantcasso · ESP32 K-means</span>
+        <span>{points.length}/{MAX_POINTS} samples buffered</span>
+      </footer>
+    </div>
+  );
+}
+
+// A single instrument readout in the hero strip — mono number, sage eyebrow.
+function Readout({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <div>
+      <div className="eyebrow">{label}</div>
+      <div className="mt-1 font-mono text-2xl tabular-nums text-[var(--ink)]">
+        {value}
+        {unit && (
+          <span className="ml-1 text-sm text-[var(--sage-dim)]">{unit}</span>
+        )}
       </div>
     </div>
   );
